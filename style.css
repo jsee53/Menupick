@@ -163,6 +163,22 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
 button.danger { color: var(--danger); }
 .muted { color: var(--muted); font-size: 13px; margin: 0; }
 
+.map-search { opacity: .45; }
+
+.info { padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+.info-head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 4px; }
+.info-head .emoji { font-size: 32px; line-height: 1; }
+.info-head > div { flex: 1; min-width: 0; }
+.info-head h2 { margin: 0 0 2px; font-size: 20px; }
+.info-head .meta { font-size: 13px; color: var(--muted); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.info-row { display: flex; gap: 10px; font-size: 14.5px; }
+.info-row > div { flex: 1; min-width: 0; word-break: break-all; white-space: pre-wrap; }
+.info-row a { color: var(--lunch); }
+.map-btn {
+  display: block; text-align: center; text-decoration: none; margin-top: 6px;
+  background: #03c75a; color: #fff; font-weight: 700; border-radius: 12px; padding: 12px;
+}
+
 .toast {
   position: fixed; left: 50%; bottom: calc(90px + env(safe-area-inset-bottom));
   transform: translateX(-50%) translateY(20px); opacity: 0; pointer-events: none;

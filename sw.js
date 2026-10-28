@@ -1,5 +1,5 @@
 // 파일을 수정해서 배포할 때마다 버전을 올리면 휴대폰에 새 버전이 반영된다.
-const CACHE = "menupick-v1";
+const CACHE = "menupick-v2";
 const ASSETS = [
   "./",
   "./index.html",
@@ -29,7 +29,7 @@ self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET" || new URL(req.url).origin !== location.origin) return;
   e.respondWith(
-    fetch(req)
+    fetch(req, { cache: "no-cache" }) // 브라우저 HTTP 캐시를 건너뛰고 서버에 재검증
       .then((res) => {
         if (res.ok) {
           const copy = res.clone();

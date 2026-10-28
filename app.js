@@ -13,6 +13,7 @@
     return {
       id: uid(), name: d.name, cat: d.cat, tags: [...d.tags], visited: d.visited,
       memo: d.memo || "", rating: 0, fav: false, visits: [],
+      link: d.link || "", addr: d.addr || "", hours: d.hours || "", phone: d.phone || "", menu: d.menu || "",
     };
   }
 
@@ -56,7 +57,10 @@
     return n === 0 ? "오늘 방문" : n === 1 ? "어제 방문" : `${n}일 전 방문`;
   }
 
-  const mapUrl = (name) => "https://map.naver.com/p/search/" + encodeURIComponent("성수 " + name);
+  const INFO_FIELDS = ["link", "addr", "hours", "phone", "menu"];
+  // 저장된 네이버 지도 링크가 있으면 그 가게로, 없으면 검색으로
+  const mapUrl = (it) => it.link || "https://map.naver.com/p/search/" + encodeURIComponent("성수 " + it.name);
+  const hasInfo = (it) => INFO_FIELDS.some((k) => it[k]);
   const stars = (n) => (n ? "★".repeat(n) + "☆".repeat(5 - n) : "");
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
@@ -78,7 +82,7 @@
       if (ui.mode === "new" && it.visited) return false;
       if (ui.mode === "fav" && !it.fav) return false;
       if (ui.cat && it.cat !== ui.cat) return false;
-      if (q && !(it.name.toLowerCase().includes(q) || it.memo.toLowerCase().includes(q))) return false;
+      if (q && ![it.name, it.memo, it.menu, it.addr].some((v) => (v || "").toLowerCase().includes(q))) return false;
       return true;
     });
     const byName = (a, b) => a.name.localeCompare(b.name, "ko");
@@ -116,14 +120,14 @@
         .filter(Boolean).join(" · ");
       return `<li class="item" data-id="${it.id}">
         <span class="emoji">${CAT_EMOJI[it.cat] || "🍽️"}</span>
-        <div class="body" data-act="edit">
+        <div class="body" data-act="info">
           <div class="name">${esc(it.name)} ${badges}</div>
           <div class="meta">${meta}</div>
         </div>
         <div class="actions">
           <button data-act="fav" aria-label="즐겨찾기" class="${it.fav ? "" : "fav-off"}">⭐</button>
           <button data-act="visit" aria-label="오늘 방문 기록">✅</button>
-          <a href="${mapUrl(it.name)}" target="_blank" rel="noopener" aria-label="네이버 지도">🗺️</a>
+          <a href="${mapUrl(it)}" target="_blank" rel="noopener" aria-label="네이버 지도" class="${it.link ? "" : "map-search"}">🗺️</a>
         </div>
       </li>`;
     }).join("");
@@ -201,7 +205,7 @@
       <div class="pick-name">${CAT_EMOJI[it.cat] || ""} ${esc(it.name)}</div>
       <div class="pick-sub">${[it.cat, it.rating ? stars(it.rating) : "", visitLabel(it) || (it.visited ? "" : "아직 안 가본 곳"), esc(it.memo)].filter(Boolean).join(" · ")}</div>
       <div class="pick-links">
-        <a href="${mapUrl(it.name)}" target="_blank" rel="noopener">🗺️ 지도</a>
+        <a href="${mapUrl(it)}" target="_blank" rel="noopener">🗺️ 지도</a>
         <button type="button" data-pick-visit="${it.id}">✅ 여기로 결정</button>
       </div>`;
   }
@@ -228,6 +232,7 @@
     form.dinner.checked = it ? it.tags.includes("dinner") : false;
     form.visited.checked = it ? it.visited : false;
     form.memo.value = it ? it.memo : "";
+    INFO_FIELDS.forEach((k) => (form[k].value = it ? it[k] || "" : ""));
     editRating = it ? it.rating : 0;
     renderStarsInput();
     $("#deleteBtn").hidden = !it;
@@ -245,6 +250,7 @@
     if (form.lunch.checked) tags.push("lunch");
     if (form.dinner.checked) tags.push("dinner");
     const data = { name, cat: form.cat.value, tags, visited: form.visited.checked, memo: form.memo.value.trim(), rating: editRating };
+    INFO_FIELDS.forEach((k) => (data[k] = form[k].value.trim()));
     if (editing) {
       Object.assign(editing, data);
       toast("저장했어요");
@@ -269,6 +275,74 @@
     save(); render();
     dlg.close("deleted");
     toast("삭제했어요");
+  });
+
+  // 네이버 지도 '공유 → 복사' 텍스트에서 링크·주소·가게명을 뽑아 채운다.
+  // 예) "[네이버지도]\n도담순대국\n서울 성동구 ...\nhttps://naver.me/xxxx"
+  form.link.addEventListener("input", () => {
+    const text = form.link.value;
+    const url = (text.match(/https?:\/\/\S+/) || [])[0];
+    if (!url || text.trim() === url) return;
+    const lines = text.split(/\r?\n/).map((l) => l.trim())
+      .filter((l) => l && !l.includes(url) && !/^\[.*\]$/.test(l));
+    const addr = lines.find((l) => /^(서울|경기|인천)\S*\s/.test(l));
+    const name = lines.find((l) => l !== addr);
+    form.link.value = url;
+    if (addr && !form.addr.value) form.addr.value = addr;
+    if (name && !form.name.value) form.name.value = name;
+    toast("링크를 정리했어요");
+  });
+
+  // ---------- 가게 정보 ----------
+  const idlg = $("#infoDlg");
+  let infoItem = null;
+
+  function renderInfo() {
+    const it = infoItem;
+    const row = (icon, html) => (html ? `<div class="info-row"><span>${icon}</span><div>${html}</div></div>` : "");
+    const tel = it.phone ? `<a href="tel:${esc(it.phone.replace(/[^0-9+]/g, ""))}">${esc(it.phone)}</a>` : "";
+    const visits = it.visits.length ? `${it.visits.length}회 · ${visitLabel(it)}` : (it.visited ? "" : "아직 안 가본 곳");
+    $("#infoBody").innerHTML = `
+      <div class="info-head">
+        <span class="emoji">${CAT_EMOJI[it.cat] || "🍽️"}</span>
+        <div>
+          <h2>${esc(it.name)}</h2>
+          <div class="meta">${it.cat}${it.tags.includes("lunch") ? ' <span class="badge lunch">점심</span>' : ""}${it.tags.includes("dinner") ? ' <span class="badge dinner">회식</span>' : ""}
+            ${it.rating ? `<span class="stars">${stars(it.rating)}</span>` : ""}</div>
+        </div>
+        <button class="icon-btn" data-info="close" aria-label="닫기">✕</button>
+      </div>
+      ${row("🍴", esc(it.menu))}
+      ${row("📍", esc(it.addr))}
+      ${row("⏰", esc(it.hours))}
+      ${row("📞", tel)}
+      ${row("📝", esc(it.memo))}
+      ${row("🗓️", visits)}
+      ${hasInfo(it) ? "" : `<p class="muted">✏️ 수정에서 네이버 지도 링크와 가게 정보를 넣을 수 있어요.</p>`}
+      <a class="map-btn" href="${mapUrl(it)}" target="_blank" rel="noopener">🗺️ ${it.link ? "네이버 지도에서 보기" : "네이버 지도에서 검색"}</a>
+      <div class="dlg-actions">
+        <button type="button" data-info="fav">${it.fav ? "⭐ 즐겨찾기 해제" : "☆ 즐겨찾기"}</button>
+        <button type="button" data-info="visit">✅ 오늘 방문</button>
+        <span class="spacer"></span>
+        <button type="button" data-info="edit">✏️ 수정</button>
+      </div>`;
+  }
+
+  function openInfo(it) {
+    infoItem = it;
+    renderInfo();
+    idlg.showModal();
+  }
+
+  idlg.addEventListener("click", (e) => {
+    if (e.target === idlg) return idlg.close(); // 바깥 영역 탭하면 닫기
+    const b = e.target.closest("[data-info]");
+    if (!b || !infoItem) return;
+    const act = b.dataset.info;
+    if (act === "close") idlg.close();
+    else if (act === "edit") { idlg.close(); openEdit(infoItem); }
+    else if (act === "fav") { infoItem.fav = !infoItem.fav; save(); renderList(); renderInfo(); }
+    else if (act === "visit") { toggleVisitToday(infoItem); renderInfo(); }
   });
 
   // ---------- 설정 ----------
@@ -296,6 +370,7 @@
         id: x.id || uid(), name: String(x.name), cat: CATEGORIES.includes(x.cat) ? x.cat : "기타",
         tags: Array.isArray(x.tags) ? x.tags : ["lunch"], visited: !!x.visited, memo: x.memo || "",
         rating: +x.rating || 0, fav: !!x.fav, visits: Array.isArray(x.visits) ? x.visits : [],
+        ...Object.fromEntries(INFO_FIELDS.map((k) => [k, typeof x[k] === "string" ? x[k] : ""])),
       }));
       save(); render(); sdlg.close();
       toast(`${items.length}곳 불러왔어요`);
@@ -346,7 +421,7 @@
     if (!li || !act) return;
     const it = items.find((x) => x.id === li.dataset.id);
     if (!it) return;
-    if (act.dataset.act === "edit") openEdit(it);
+    if (act.dataset.act === "info") openInfo(it);
     else if (act.dataset.act === "fav") { it.fav = !it.fav; save(); renderList(); }
     else if (act.dataset.act === "visit") toggleVisitToday(it);
   });
