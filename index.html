@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>성수 메뉴픽</title>
+  <meta name="description" content="성수 점심·회식 맛집 리스트와 메뉴 랜덤 뽑기">
+  <meta name="theme-color" content="#ff6b3d">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="메뉴픽">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="title-row">
+      <h1>🍱 성수 메뉴픽</h1>
+      <button class="icon-btn" id="settingsBtn" aria-label="설정">⚙️</button>
+    </div>
+    <div class="seg" id="modeSeg" role="tablist">
+      <button data-mode="all" class="on">전체</button>
+      <button data-mode="lunch">점심</button>
+      <button data-mode="dinner">회식</button>
+      <button data-mode="new">안가본곳</button>
+      <button data-mode="fav">⭐</button>
+    </div>
+    <div class="search-row">
+      <input id="search" type="search" placeholder="가게 이름·메모 검색" autocomplete="off">
+      <select id="sort" aria-label="정렬">
+        <option value="default">기본순</option>
+        <option value="name">이름순</option>
+        <option value="rating">별점순</option>
+        <option value="recent">최근 방문순</option>
+        <option value="old">오래 안 간 순</option>
+      </select>
+    </div>
+    <div class="chips" id="catChips"></div>
+  </header>
+
+  <main>
+    <section class="pick-card">
+      <div id="pickResult" class="pick-result">
+        <span class="pick-hint">오늘 뭐 먹지?</span>
+      </div>
+      <button id="pickBtn" class="pick-btn">🎲 랜덤 뽑기</button>
+      <label class="pick-opt"><input type="checkbox" id="skipRecent" checked> 최근 3일 내 간 곳 제외</label>
+    </section>
+
+    <p class="count" id="count"></p>
+    <ul class="list" id="list"></ul>
+  </main>
+
+  <button class="fab" id="addBtn" aria-label="가게 추가">＋</button>
+
+  <!-- 상세/편집 -->
+  <dialog id="editDlg">
+    <form method="dialog" id="editForm">
+      <h2 id="editTitle" tabindex="-1" autofocus>가게 추가</h2>
+      <label>이름<input name="name" required maxlength="40"></label>
+      <label>종류
+        <select name="cat"></select>
+      </label>
+      <fieldset>
+        <legend>용도</legend>
+        <label class="inline"><input type="checkbox" name="lunch"> 점심</label>
+        <label class="inline"><input type="checkbox" name="dinner"> 회식</label>
+        <label class="inline"><input type="checkbox" name="visited"> 가봤음</label>
+      </fieldset>
+      <label>별점
+        <div class="stars-input" id="starsInput"></div>
+      </label>
+      <label>메모<textarea name="memo" rows="3" maxlength="300" placeholder="대표 메뉴, 가격, 웨이팅 등"></textarea></label>
+      <p class="visit-info" id="visitInfo"></p>
+      <div class="dlg-actions">
+        <button type="button" class="danger" id="deleteBtn">삭제</button>
+        <span class="spacer"></span>
+        <button value="cancel" formnovalidate>취소</button>
+        <button value="save" class="primary">저장</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- 설정 -->
+  <dialog id="settingsDlg">
+    <form method="dialog">
+      <h2>설정</h2>
+      <p class="muted">데이터는 이 기기 브라우저에만 저장됩니다. 기기를 바꾸면 백업 파일로 옮기세요.</p>
+      <div class="stack">
+        <button type="button" id="exportBtn">📤 백업 파일 내보내기</button>
+        <button type="button" id="importBtn">📥 백업 파일 불러오기</button>
+        <input type="file" id="importFile" accept="application/json,.json" hidden>
+        <button type="button" id="mergeBtn">🔄 기본 목록의 새 가게 추가하기</button>
+        <button type="button" class="danger" id="resetBtn">🗑️ 처음 상태로 초기화</button>
+      </div>
+      <div class="dlg-actions">
+        <span class="spacer"></span>
+        <button value="close" class="primary">닫기</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
